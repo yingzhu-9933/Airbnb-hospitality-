@@ -1,0 +1,440 @@
+---
+title: "Hospitality Analysis Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Project Background
+
+The hospitality industry is a broad category of fields within the service industry that includes lodging, food and drink service, event planning, theme parks, transportation, cruise line, traveling, airline and additional fields within the tourism industry.
+
+The dataset of this project is from an online hotel booking company. Online marketplace and hospitality service enable people to lease or rent short-term lodging including vacation rentals, apartment rentals, homestays, hostels beds, or hotel rooms.
+
+### Questions 
+
+1. Use dataset to train a model in order to forecast the next country destination. You can use any model you like.
+
+2. If we have $500,000 marketing campaign budget on market, what is your marketing campaign strategy recommendation?
+
+3. Analyze the conversion rate of the airbnb users (overall trend, date & time, forecasting analysis).
+
+
+### Dataset -- users.csv
+
+There are 16 features used to describe each user in the dataset:
+# - become bullet points in html
+- id: user id
+- date_account_created: the date of account creation
+- timestamp_first_active: timestamp of the first activity, note that it can be earlier than
+- date_first_booking: date of first booking
+- gender
+- age
+- signup_method
+- signup_flow: the page a user came to signup up from
+- language: international language preference
+- affiliate_channle: what kind of paid marketing
+- affiliate_provider: where the marketing is e.g. google, craigslist, other
+- first_affiliate_tracked: whats the first marketing the user interacted with before the signing up
+- signup_app
+- first_device_type
+- first_browser
+- country_destination: the country that the user was going when first booking, 'NDF'stands for no booking 
+
+```{r}
+## load necessary packages
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(lubridate)
+```
+
+## Load Data
+```{r}
+users = read.csv('users.csv', stringsAsFactors = T)
+dim(users)
+```
+
+
+```{r}
+str(users)
+```
+
+```{r}
+head(users)
+```
+
+```{r}
+summary(users)
+```
+
+```{r}
+## Data type convert: change the data type of date_account_created, timestamp_first_active, date_first_booking column to datetime format
+users$date_account_created <- as.Date(users$date_account_created)
+users$date_first_booking <- lubridate::ymd(users$date_first_booking)
+users$timestamp_first_active <- ymd_hms(users$timestamp_first_active)
+```
+
+
+## Exploratory Data Analysis
+
+#### 1) country destinations 
+```{r}
+summary(users$country_destination)
+prop.table(table(users$country_destination))
+```
+#NDF highest propotion, mostly booking in US because the app is from us 
+
+```{r}
+users %>% count(country_destination) %>% mutate(percentage = round(n/sum(n), 2)) %>%
+  ggplot(aes(country_destination, percentage)) + geom_bar(fill='#3498DB', stat = 'identity') + 
+    ggtitle('Percentage of Different Countries')
+```
+
+* Observations :
+      1 .  57% of users in dataset did not travel anywhere .
+      2 .  28 % of users travelled in their home country i.e ..,U.S .
+      
+#### 2) device type
+
+```{r}
+users %>% count(first_device_type) %>% mutate(percentage = round(n/sum(n), 2)) %>%
+  ggplot(aes(first_device_type, percentage)) + geom_bar(fill='#196F3D', stat = 'identity') + 
+  theme(axis.text.x = element_text(angle = 90)) + ggtitle('Percentage of different Device Type')
+```
+
+* Observations :
+      1 .  58% users are using Apple products .
+      2 .  Out of 71,719 users who travelled at least once,31660 users are apple users 
+      3 .  44.15%  which implies Mac users are booking more frequently .
+      4 .  Most people use desktop to sign up
+      
+#### 3) age
+
+```{r}
+ggplot(users) + geom_density(aes(users$age), na.rm = TRUE, fill = '#16A085') + xlab('age') + 
+  ggtitle('Age Distribution')
+```
+
+* Observations :
+      1 .  There are ages around 2000, probably their birth year instead of age.
+      
+```{r}
+users %>% filter(age<100) %>%
+  ggplot(aes(age)) + geom_density(na.rm = TRUE, fill = '#16A085') + ggtitle('Age Distribution')
+```
+
+* Observations :
+      1 .  Majority of the users are between age 25 and 40 years . 
+      2 .  There are some age values which are less than 18 years .
+
+```{r}
+users %>% filter(age<100) %>%
+ggplot() + geom_boxplot(aes(country_destination, age, color=country_destination), na.rm = TRUE) +
+  ggtitle('Age vs Country Destination')
+```
+
+* Observations :
+      1 .   Users booking for countries Spain, Portugal and Netherlands tend to be younger where as Users booking for Great Britain tend to be older.
+      
+#### 4) language
+```{r}
+users %>% count(language) %>% mutate(percentage = round(n/sum(n), 2)) %>%
+ggplot(aes(language, percentage)) + geom_bar(fill='#3498DB', stat = 'identity') + 
+  ggtitle('Percentage of different Language')
+```
+
+* Observations  : 
+      1  .  Majority of the user's language preference is English (96.67%) . But it is still qu-estionable because most of users are from US 
+      
+#### 5) signup app 
+```{r}
+ggplot(users) + geom_bar(aes(signup_app, fill=signup_app)) + facet_grid(.~country_destination) +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) + xlab('Country Destination based on signup app') + 
+  ylab('Number of users')
+```
+
+* Observations :
+      1 . Users with signup app 'Web' outnumbered other signup app like Moweb , iOS , Android in every country . 
+      2 . Android is the least used signup app 
+      
+#### 6) signup method
+
+```{r}
+users %>% filter(country_destination != 'NDF') %>%
+ggplot() + geom_bar(aes(signup_method, fill=signup_method)) + facet_grid(.~country_destination) +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) + xlab('Country Destination based on signup method') + 
+  ylab('Number of users')
+```
+
+```{r}
+ggplot(users) + geom_bar(aes(signup_method, fill=signup_method)) + facet_grid(.~country_destination) +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) + xlab('Country Destination based on signup method') + 
+  ylab('Number of users')
+```
+
+Signup method **basic** means that user sigu up with email.
+
+Signup method **facebook** means that user sigu up with facebook account.
+
+Signup method **google** means that user sigu up with google account.
+
+* Observations :
+      1 .  There are less signups (almost negligible) happening by google signup compared to facebook, basic signup
+      2 .  Basic signup count is almost 2.5 times facebook signup count .
+      
+#### 7) affiliate provider
+
+```{r}
+users %>% count(affiliate_provider) %>% mutate(percentage = round(n/sum(n), 2)) %>%
+ggplot(aes(affiliate_provider, percentage)) + geom_bar(fill='#CB4335', stat = 'identity') + 
+  ggtitle('Percentage of different Affiliate Provider') + theme(axis.text.x = element_text(angle = 90))
+```
+**Affiliate marketing** is an advertising model in which a company compensates third-party publishers to generate traffic or leads to the company's products and services.
+
+Affiliate provider **direct** means the users come to the website by typing url.
+
+* Observations :
+      1 . In previous plot we have observed that percentage of users signing up with google are 0.03% , but in this plot we  observe that most of users are coming from google (22%)
+
+## Data Cleaning
+### 1) check duplicate
+```{r}
+summary(duplicated(users))
+```
+There are no duplicate rows in the users dataset.
+
+### 2) check missing value
+```{r}
+table(is.na(users))
+```
+
+```{r}
+## 1) colSums
+colSums(is.na(users))
+```
+
+```{r}
+## 2) sapply
+sapply(users, function(x) sum(is.na(x)))
+```
+
+```{r}
+## 3) for loop
+for (var in names(users)) {
+  missing <- sum(is.na(users[,var]))
+  if (missing >0) {
+    print(c(var, missing))
+  }
+}
+```
+
+#### Handing the missing value
+
+date_first_booking: there are missing value because the users didn't make a booking using the website, we'll drop this column in the modeling.
+
+```{r}
+## age: fill the na with -1
+users$age[is.na(users$age)] <- -1
+```
+
+
+### 3) check outlier / anomaly
+#### age
+```{r}
+summary(users$age) 
+hist(users$age)
+```
+
+```{r}
+summary(users[users$age>=1900,]$age)
+## These are birthdays instead of age
+users$age = ifelse((users$age >= 1924) & (users$age <= 2014), 2017-users$age, users$age)
+hist(users$age)
+```
+
+```{r}
+## keep age 10~100, others consider as -1
+users$age <- ifelse((users$age >= 10) & (users$age <= 100), users$age, -1)
+#users$age[is.na(users$age)] <- round(mean(users$age,na.rm = TRUE))
+hist(users$age)
+```
+
+## Feature Engineering
+
+#### What's feature engineering?
+Feature engineering is the process of transforming raw data into features that better represent the underlying problem to the predictive models, resulting in improved model accuracy on unseen data. Feature engineering turn your inputs into things the algorithm can understand.
+
+### feature extraction
+
+#### 1) date_account_created (dac)
+
+
+```{r}
+# extract year infomation
+users$dac_year = year(users$date_account_created)
+# extract month information
+users$dac_month = month(users$date_account_created)
+# extract day of week information
+users$dac_wday = wday(users$date_account_created)
+```
+
+```{r}
+# extract season information
+get_season <- function(dt) {
+  dt = month(dt)
+  if (dt %in% c(3,4,5)) {
+    return('Spring')
+  } else if (dt %in% c(6,7,8)) {
+    return('Summer')
+  } else if (dt %in% c(9,10,11)) {
+    return('Fall')
+  } else {
+    return('Winter')
+  }
+}
+```
+
+```{r}
+users$dac_season = factor(sapply(users$date_account_created, get_season))
+```
+
+```{r}
+head(users)
+```
+
+#### 2) age
+```{r}
+age_dis <- function(age) {
+  if (age == -1) {
+    return('N/A')
+  } else if (age >= 10 & age < 21) {
+    return('10-20')
+  } else if (age >= 21 & age < 31) {
+    return('21-30')
+  } else if (age >= 31 & age < 41) {
+    return('31-40')
+  } else if (age >= 41 & age < 51) {
+    return('41-50')
+  } else if (age >= 51 & age < 60) {
+   return('51-60')
+  } else if (age >= 61 & age < 71) {
+    return('61-70')
+  } else if (age >= 71 & age < 81) {
+   return('71-80')
+  } else {
+   return('81+')
+  }
+}
+
+users$age_dis <- factor(sapply(users$age, age_dis))
+```
+
+```{r}
+head(users)
+```
+
+```{r}
+write.csv(users, file = "processed_users.csv", row.names = F)
+#save to wd, don't need row name
+```
+
+## Question 1: Build a model to forecast the next country destination
+
+## Model Building
+
+```{r}
+users = read.csv('processed_users.csv')
+```
+
+```{r}
+del_col = c('id', 'date_account_created','timestamp_first_active','date_first_booking', 'age')
+users <- users[,-which(names(users) %in% del_col)]
+```
+
+```{r}
+# Splitting the dataset into the Training set and Test set
+library(caTools)
+set.seed(123)
+# split represents how do I want my training data to split, split ratio is 75%
+split = sample.split(users$country_destination, SplitRatio = 0.75)
+# Training set get 75% data of total, other 25% gives to test set
+training_set = subset(users, split == TRUE)
+test_set = subset(users, split == FALSE)
+```
+
+
+```{r}
+# Fitting Random Forest model 
+# since country not binary and it's a classificaiton problem, better than decision tree, prevent overfitting  
+library(randomForest)
+set.seed(123)
+training_set$country_destination = factor(training_set$country_destination) 
+model <- randomForest(country_destination~.,
+                      data = training_set,
+                      ntree = 15,
+                      importance = TRUE)
+#?randomForest
+plot(model)
+```
+
+
+```{r}
+# Prediciting the test set results
+y_pred = predict(model, newdata = test_set, type = "response")
+```
+
+```{r}
+# Confusion matrix   on diagonal line is correct 
+library(caret)
+# caret::confusionMatrix(y_pred, test_set$country_destination)
+table = table(Predicted = y_pred, Actual = test_set$country_destination)
+table
+```
+
+```{r}
+print(paste('Random Forest Accuracy:', sum(diag(table)/sum(table))))
+```
+
+```{r}
+# Variance Importance plot
+varImpPlot(model, sort = TRUE, n.var = 10, main = "Top 10 Feature Importance")
+```
+
+### Model Evaluation
+```{r}
+# Applying K-Fold Cross Validation
+folds = createFolds(users$country_destination, k = 5)
+# We use lapply to apply each folds into our training set 
+ 
+cv = lapply(folds, function(x) {
+  training_fold = users[-x,]
+  test_fold = users[x,]
+  training_fold$country_destination = factor(training_fold$country_destination) 
+  model2 <- randomForest(country_destination~.,
+                         data = training_fold,
+                         # we create more ntrees to try to boost model performace
+                         ntree = 15,
+                         importance = TRUE)
+  y_pred = predict(model2, newdata = test_fold, type = 'response')
+  # Create confusion matrix
+  cm = table(y_pred, test_fold$country_destination)
+  # [1,1] = TP, [2,2] = TN, [1,2] = FP, [2,1] = FN
+  accuracy2 = sum(diag(cm)/sum(cm))
+  # The accuracy2 here will return each folds' accuray
+  return(accuracy2) 
+})
+cv
+```
+
+
+```{r}
+
+cv_accuracy = mean(as.numeric(cv))
+cv_accuracy
+```
